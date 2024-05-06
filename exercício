@@ -1,0 +1,149 @@
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Livro {
+    private String titulo;
+    private String autor;
+    private boolean emprestado;
+
+    // getters e setters
+}
+
+public class LivroDAO {
+    private Connection connection;
+
+    public LivroDAO(Connection connection) {
+        this.connection = connection;
+    }
+
+    public void cadastrar(Livro livro) {
+        String sql = "INSERT INTO livros (titulo, autor, emprestado) VALUES (?, ?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, livro.getTitulo());
+            stmt.setString(2, livro.getAutor());
+            stmt.setBoolean(3, livro.isEmprestado());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public List<Livro> listar() {
+        List<Livro> livros = new ArrayList<>();
+        String sql = "SELECT * FROM livros";
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                Livro livro = new Livro();
+                livro.setTitulo(rs.getString("titulo"));
+                livro.setAutor(rs.getString("autor"));
+                livro.setEmprestado(rs.getBoolean("emprestado"));
+                livros.add(livro);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return livros;
+    }
+
+    public void emprestar(Livro livro) {
+        String sql = "UPDATE livros SET emprestado = true WHERE titulo = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, livro.getTitulo());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void devolver(Livro livro) {
+        String sql = "UPDATE livros SET emprestado = false WHERE titulo = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, livro.getTitulo());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+public class LivroController {
+    private LivroDAO livroDAO;
+
+    public LivroController(LivroDAO livroDAO) {
+        this.livroDAO = livroDAO;
+    }
+
+    public void cadastrarLivro(Livro livro) {
+        livroDAO.cadastrar(livro);
+    }
+
+    public void listarLivros() {
+        List<Livro> livros = livroDAO.listar();
+        for (Livro livro : livros) {
+            System.out.println(livro.getTitulo() + ", " + livro.getAutor() + ", " + (livro.isEmprestado() ? "Emprestado" : "Disponível"));
+        }
+    }
+
+    public void emprestarLivro(Livro livro) {
+        livroDAO.emprestar(livro);
+    }
+
+    public void devolverLivro(Livro livro) {
+        livroDAO.devolver(livro);
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        try (Connection connection = DriverManager.getConnection("jdbc:h2:~/test", "sa", "")) {
+            LivroDAO livroDAO = new LivroDAO(connection);
+            LivroController livroController = new LivroController(livroDAO);
+            Scanner scanner = new Scanner(System.in);
+
+            while (true) {
+                System.out.println("1. Cadastrar livro");
+                System.out.println("2. Listar livros");
+                System.out.println("3. Emprestar livro");
+                System.out.println("4. Devolver livro");
+                System.out.println("Escolha uma opção:");
+
+                int opcao = scanner.nextInt();
+                scanner.nextLine();  // consume newline left-over
+                switch (opcao) {
+                    case 1:
+                        System.out.println("Digite o título do livro:");
+                        String titulo = scanner.nextLine();
+                        System.out.println("Digite o autor do livro:");
+                        String autor = scanner.nextLine();
+                        Livro livro = new Livro();
+                        livro.setTitulo(titulo);
+                        livro.setAutor(autor);
+                        livroController.cadastrarLivro(livro);
+                        break;
+                    case 2:
+                        livroController.listarLivros();
+                        break;
+                    case 3:
+                        System.out.println("Digite o título do livro que você deseja emprestar:");
+                        titulo = scanner.nextLine();
+                        livro = new Livro();
+                        livro.setTitulo(titulo);
+                        livroController.emprestarLivro(livro);
+                        break;
+                    case 4:
+                        System.out.println("Digite o título do livro que você deseja devolver:");
+                        titulo = scanner.nextLine();
+                        livro = new Livro();
+                        livro.setTitulo(titulo);
+                        livroController.devolverLivro(livro);
+                        break;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
